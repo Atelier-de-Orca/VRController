@@ -4,6 +4,11 @@
 #define INTERRUPT_PIN 2      // use pin 2 on Arduino Uno & most boards
 #define LED_PIN 9
 
+#define joystickPinX 0
+#define joystickPinY 1
+#define joystickPinB 7
+#define triggerPin   3
+
 typedef union {
     float number;
     uint8_t bytes[4];
@@ -66,10 +71,10 @@ FLOATUNION_t space[3];                // Position data (float) to (byte array)
 FLOATUNION_t velocity[3];             // Velocity data (float) to (byte array)
 unsigned long timer;                  // Last frame time
 float timeTemp;                       // Delta time
+int triggerState = TRIGGER_NOMAL;     // Trigger state
 
 uint8_t dataPacket[34] = {'$', 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, '#'};
 
-int state = TRIGGER_NOMAL;
 int i = 0;
 
 // ================================================================
@@ -129,6 +134,9 @@ void loop() {
     
     // wait for MPU interrupt or extra packet(s) available
     while (!mpuInterrupt && fifoCount < packetSize) {
+        if(triggerState != TRIGGER_PULLED && analogRead(triggerPin) <10) {
+            triggerState = TRIGGER_PULLED;
+        }
     }
     
     // reset interrupt flag and get INT_STATUS byte
@@ -206,12 +214,13 @@ void loop() {
         dataPacket[27] = space[2].bytes[2];
         dataPacket[28] = space[2].bytes[3];
 
-        dataPacket[29] = (analogRead(2) >> 2);
-        dataPacket[30] = (analogRead(3) >> 2);
-        dataPacket[31] = digitalRead(7);
-        dataPacket[32] = state;
+        dataPacket[29] = (analogRead(joystickPinX) >> 2);
+        dataPacket[30] = (analogRead(joystickPinY) >> 2);
+        dataPacket[31] = digitalRead(joystickPinB);
+        dataPacket[32] = triggerState;
         // index 33 is end marker '#'
         
         BTSerial.write(dataPacket, 34);
+        triggerState = TRIGGER_NOMAL;
     }
 }
